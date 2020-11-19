@@ -8,6 +8,7 @@
 # ci: 将本分支的代码合入develop分支，并同时整合其他已合并分支的最新代码；如有自己分支的冲突，直接解决并强制提交
 # init-sub: submodule的init操作
 # ci-sub: submodule的ci操作
+# sync-dev-sub: 同步submodule
 #========================
 # 可通过在init和ci时指定prefix来区分不同环境/不同版本的dev分支
 # 如设置prefix为preview将创建preview-develop分支和对应preview-build-cache分支，rel-6.0.0将创建rel-6.0.0-develop分支的对应rel-6.0.0--build-cache分支
@@ -16,6 +17,10 @@
 checkout_branch_with_submodule_update() {
     local branch=$1
     git checkout $branch
+    if [ $? -ne 0 ]; then
+        echo "$branch分支不存在，请先执行init操作！"
+        exit 1
+    fi
     git submodule update
 }
 
@@ -53,7 +58,7 @@ save_cache() {
     git push -f --set-upstream origin $build_cache_branch
 }
 
-[[ $# -lt 1 ]] && echo "Usage: $0 (init|ci|new|init-sub|ci-sub)" && echo "Specify --help for available options" && exit 1
+[[ $# -lt 1 ]] && echo "Usage: $0 (init|ci|new|init-sub|ci-sub|sync-dev-sub)" && echo "Specify --help for available options" && exit 1
 
 cmd=${1}
 cache_dir=".cache"
@@ -68,13 +73,14 @@ case "$cmd" in
 --help)
     echo 'bash workflow-git.sh <command> [option] [option]'
     echo 'where <command> is one of:'
-    echo '  init,ci,new,init-sub,ci-sub'
+    echo '  init,ci,new,init-sub,ci-sub,sync-dev-sub'
     echo 'Configuration:'
     echo '  new <branch name> [base branch]                        create a new branch from base branch'
     echo '  init [prefix] [base branch]                            init build-cache branch and develop branch'
     echo '  ci [prefix] [base branch]                              merge current feature branch'
     echo "  init-sub <submodule path> [prefix] [base branch]       init submodule's build-cache branch and develop branch"
     echo "  ci-sub <submodule path> [prefix] [base branch]         merge submodule's current feature branch"
+    echo "  sync-dev-sub <submodule path> [prefix] [sub prefix]    sync submodule"
     ;;
 new)
     [[ $# -lt 2 || $# -gt 3 ]] && echo "Usage: $0 new <branch name> [base branch]" && exit 1
@@ -88,6 +94,7 @@ new)
     checkout_branch_with_submodule_update $base_branch
     git reset --hard origin/$base_branch
     git checkout -b $new_branch
+    echo "新建${new_branch}分支完成"
     ;;
 init)
     [[ $# -lt 2 || $# -gt 3 ]] && echo "Usage: $0 init [prefix] [base branch]" && exit 1
@@ -120,6 +127,7 @@ init)
         git push origin $new_develop_branch
         checkout_branch_with_submodule_update $base_branch
     fi
+    echo "init完成"
     ;;
 ci)
     [[ $# -lt 2 || $# -gt 3 ]] && echo "Usage: $0 ci [prefix] [base branch]" && exit 1
@@ -223,6 +231,10 @@ init-sub)
     fi
     sub_path=$2
     cd $sub_path
+    if [ $? -ne 0 ]; then
+        echo "请检查submodule path！"
+        exit 1
+    fi
     git fetch --all
     new_build_cache_branch=${service_env}-build-cache
     new_develop_branch=${service_env}-develop
@@ -243,11 +255,16 @@ init-sub)
         checkout_branch_with_submodule_update $base_branch
     fi
     cd -
+    echo "submodule init完成"
     ;;
 ci-sub)
     [[ $# -gt 4 || $# -lt 2 ]] && echo "Usage: $0 ci-sub <submodule path> [prefix] [base branch]" && exit 1
     sub_path=$2
     cd $sub_path
+    if [ $? -ne 0 ]; then
+        echo "请检查submodule path！"
+        exit 1
+    fi
     git fetch --all
     path_arr=`echo ${sub_path} | tr '/' ' '`
     if [[ -n "$(git status --porcelain)" ]]; then
@@ -341,6 +358,40 @@ ci-sub)
     git push -f --set-upstream origin $branch
     cd -
     echo "submodule分支合并完成"
+    ;;
+sync-dev-sub)
+    [[ $# -gt 3 || $# -lt 2 ]] && echo "Usage: $0 sync-dev-sub <submodule path> [prefix] [sub prefix]" && exit 1
+    sub_path=$2
+    if [ ! $3 ]; then
+        service_env=$default_prefix
+    else
+        service_env=$3
+    fi
+    if [ ! $4 ]; then
+        sub_service_env=$service_env
+    else
+        sub_service_env=$4
+    fi
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    git fetch --all
+    remote_integration_branch=${service_env}-develop
+    sub_remote_integration_branch=${sub_service_env}-develop
+    checkout_branch_with_submodule_update $remote_integration_branch
+    git reset --hard origin/$remote_integration_branch
+    cd $sub_path
+    if [ $? -ne 0 ]; then
+        echo "请检查submodule path！"
+        exit 1
+    fi
+    git fetch --all
+    checkout_branch_with_submodule_update $sub_remote_integration_branch
+    git reset --hard origin/$sub_remote_integration_branch
+    cd -
+    git add .
+    git commit -m 'update submodule'
+    git push -f --set-upstream origin $remote_integration_branch
+    git checkout $branch
+    echo "submodule同步完成"
     ;;
 *)
     echo "无效命令 $cmd"
