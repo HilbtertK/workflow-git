@@ -58,7 +58,7 @@ save_cache() {
     git push -f --set-upstream origin $build_cache_branch
 }
 
-[[ $# -lt 1 ]] && echo "Usage: $0 (init|ci|new|init-sub|ci-sub|sync-dev-sub)" && echo "Specify --help for available options" && exit 1
+[[ $# -lt 1 ]] && echo "Usage: $0 (init|ci|new|init-sub|ci-sub|sync-dev-sub)" && echo "Specify --help for avaliable options" && exit 1
 
 cmd=${1}
 cache_dir=".cache"
