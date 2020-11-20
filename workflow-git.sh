@@ -8,7 +8,7 @@
 # ci: 将本分支的代码合入develop分支，并同时整合其他已合并分支的最新代码；如有自己分支的冲突，直接解决并强制提交
 # init-sub: submodule的init操作
 # ci-sub: submodule的ci操作
-# sync-dev-sub: 同步submodule
+# sync-sub: 同步submodule
 #========================
 # 可通过在init和ci时指定prefix来区分不同环境/不同版本的dev分支
 # 如设置prefix为preview将创建preview-develop分支和对应preview-build-cache分支，rel-6.0.0将创建rel-6.0.0-develop分支的对应rel-6.0.0--build-cache分支
@@ -58,7 +58,7 @@ save_cache() {
     git push -f --set-upstream origin $build_cache_branch
 }
 
-[[ $# -lt 1 ]] && echo "Usage: $0 (init|ci|new|init-sub|ci-sub|sync-dev-sub)" && echo "Specify --help for avaliable options" && exit 1
+[[ $# -lt 1 ]] && echo "Usage: $0 (init|ci|new|init-sub|ci-sub|sync-sub)" && echo "Specify --help for avaliable options" && exit 1
 
 cmd=${1}
 cache_dir=".cache"
@@ -73,14 +73,14 @@ case "$cmd" in
 --help)
     echo 'bash workflow-git.sh <command> [option] [option]'
     echo 'where <command> is one of:'
-    echo '  init,ci,new,init-sub,ci-sub,sync-dev-sub'
+    echo '  init,ci,new,init-sub,ci-sub,sync-sub'
     echo 'Configuration:'
     echo '  new <branch name> [base branch]                        create a new branch from base branch'
     echo '  init [prefix] [base branch]                            init build-cache branch and develop branch'
     echo '  ci [prefix] [base branch]                              merge current feature branch'
     echo "  init-sub <submodule path> [prefix] [base branch]       init submodule's build-cache branch and develop branch"
     echo "  ci-sub <submodule path> [prefix] [base branch]         merge submodule's current feature branch"
-    echo "  sync-dev-sub <submodule path> [prefix] [sub prefix]    sync submodule"
+    echo "  sync-sub <submodule path> [prefix] [sub prefix]    sync submodule"
     ;;
 new)
     [[ $# -lt 2 || $# -gt 3 ]] && echo "Usage: $0 new <branch name> [base branch]" && exit 1
@@ -209,6 +209,7 @@ ci)
     if [ $? -ne 0 ]; then
         echo "*********************************************************************************"
         echo "*** rebase失败，请手动解决冲突后强制提交当前${remote_integration_branch}分支以完成合并 ***"
+        echo "*** 如果冲突来自submodule引用，需要提交后执行sync-sub命令同步develop分支的submodule引用***"
         echo "*********************************************************************************"
         exit 1
     fi
@@ -218,7 +219,7 @@ ci)
     echo "分支合并完成"
     ;;
 init-sub)
-    [ $# -gt 4 || $# -lt 2 ]] && echo "Usage: $0 init-sub <submodule path> [prefix] [base branch]" && exit 1
+    [[ $# -gt 4 || $# -lt 2 ]] && echo "Usage: $0 init-sub <submodule path> [prefix] [base branch]" && exit 1
     if [ ! $3 ]; then
         service_env=$default_prefix
     else
@@ -331,7 +332,7 @@ ci-sub)
                     exit 1
                 fi
                 temp_arr[$i]=$line
-                i++
+                i+=1
             fi
         fi
     done
@@ -359,8 +360,8 @@ ci-sub)
     cd -
     echo "submodule分支合并完成"
     ;;
-sync-dev-sub)
-    [[ $# -gt 4 || $# -lt 2 ]] && echo "Usage: $0 sync-dev-sub <submodule path> [prefix] [sub prefix]" && exit 1
+sync-sub)
+    [[ $# -gt 4 || $# -lt 2 ]] && echo "Usage: $0 sync-sub <submodule path> [prefix] [sub prefix]" && exit 1
     sub_path=$2
     if [ ! $3 ]; then
         service_env=$default_prefix
