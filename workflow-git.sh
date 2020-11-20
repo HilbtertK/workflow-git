@@ -97,7 +97,7 @@ new)
     echo "新建${new_branch}分支完成"
     ;;
 init)
-    [[ $# -lt 2 || $# -gt 3 ]] && echo "Usage: $0 init [prefix] [base branch]" && exit 1
+    [[ $# -lt 1 || $# -gt 3 ]] && echo "Usage: $0 init [prefix] [base branch]" && exit 1
     git fetch --all
     if [ ! $2 ]; then
         service_env=$default_prefix
@@ -130,7 +130,7 @@ init)
     echo "init完成"
     ;;
 ci)
-    [[ $# -lt 2 || $# -gt 3 ]] && echo "Usage: $0 ci [prefix] [base branch]" && exit 1
+    [[ $# -lt 1 || $# -gt 3 ]] && echo "Usage: $0 ci [prefix] [base branch]" && exit 1
 
     if [[ -n "$(git status --porcelain)" ]]; then
         echo "ci时不能有未提交的修改"
@@ -190,7 +190,7 @@ ci)
                     exit 1
                 fi
                 temp_arr[$i]=$line
-                i++
+                i+=1
             fi
         fi
     done
@@ -360,7 +360,7 @@ ci-sub)
     echo "submodule分支合并完成"
     ;;
 sync-dev-sub)
-    [[ $# -gt 3 || $# -lt 2 ]] && echo "Usage: $0 sync-dev-sub <submodule path> [prefix] [sub prefix]" && exit 1
+    [[ $# -gt 4 || $# -lt 2 ]] && echo "Usage: $0 sync-dev-sub <submodule path> [prefix] [sub prefix]" && exit 1
     sub_path=$2
     if [ ! $3 ]; then
         service_env=$default_prefix
